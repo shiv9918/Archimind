@@ -9,8 +9,10 @@ networkx==3.3
 
 # CPU-only torch build -- plain "torch" pulls a multi-GB CUDA build by
 # default, which blows past most free-tier deploy build/disk limits.
+# Floor pin (not exact) so pip can resolve whatever CPU wheel is actually
+# available for the Python version the host ends up using.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.3.1
+torch>=2.3.1
 sentence-transformers==3.0.1
 qdrant-client==1.10.1
 rank-bm25==0.2.2
