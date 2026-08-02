@@ -1,0 +1,54 @@
+# ArchMind AI -- future upgrade path.
+#
+# Phase 1 (current) runs with zero external services: NetworkX for the
+# knowledge graph, Qdrant in embedded/local mode, and SQLite -- nothing here
+# needs to run for the app to work today.
+#
+# Once Docker is available, uncomment the services below and switch the
+# corresponding GraphStore / database backend implementations (they were
+# built behind interfaces specifically so this swap doesn't touch app code):
+#   - Postgres  -> change DATABASE_URL in backend/.env
+#   - Redis     -> wire up Celery for the Orchestrator instead of BackgroundTasks
+#   - Neo4j     -> implement a Neo4jGraphStore(GraphStore) in
+#                  backend/app/agents/knowledge_graph.py
+#   - Qdrant    -> point QdrantClient at host="qdrant" instead of a local path
+
+# version: "3.9"
+# services:
+#   postgres:
+#     image: postgres:16-alpine
+#     environment:
+#       POSTGRES_DB: archmind
+#       POSTGRES_USER: archmind
+#       POSTGRES_PASSWORD: archmind
+#     ports:
+#       - "5432:5432"
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#
+#   redis:
+#     image: redis:7-alpine
+#     ports:
+#       - "6379:6379"
+#
+#   neo4j:
+#     image: neo4j:5-community
+#     environment:
+#       NEO4J_AUTH: neo4j/archmind123
+#     ports:
+#       - "7474:7474"
+#       - "7687:7687"
+#     volumes:
+#       - neo4j_data:/data
+#
+#   qdrant:
+#     image: qdrant/qdrant:latest
+#     ports:
+#       - "6333:6333"
+#     volumes:
+#       - qdrant_data:/qdrant/storage
+#
+# volumes:
+#   postgres_data:
+#   neo4j_data:
+#   qdrant_data:
