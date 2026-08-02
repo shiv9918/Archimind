@@ -11,25 +11,33 @@ import pickle
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from rank_bm25 import BM25Okapi
-from sentence_transformers import SentenceTransformer
 
 from app.agents.ast_parser.base import ParsedFile
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 _COLLECTION = "chunks"
 _VECTOR_SIZE = 384  # all-MiniLM-L6-v2
 _MODEL_NAME = "all-MiniLM-L6-v2"
 _TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
-_model: SentenceTransformer | None = None
+_model: "SentenceTransformer | None" = None
 
 
-def _get_model() -> SentenceTransformer:
+def _get_model() -> "SentenceTransformer":
     global _model
     if _model is None:
+        # sentence-transformers pulls in torch, which is expensive to import
+        # (CPU/memory) -- deferred to first real use instead of app startup,
+        # so the server can boot and serve /api/health on memory-constrained hosts.
+        from sentence_transformers import SentenceTransformer
+
         _model = SentenceTransformer(_MODEL_NAME)
     return _model
 
