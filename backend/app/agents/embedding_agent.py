@@ -7,6 +7,7 @@ BM25 index over the same text. Retrieval fuses both via min-max normalized
 weighted score fusion, which is what "hybrid search" means in the spec.
 """
 
+import gc
 import pickle
 import re
 from dataclasses import dataclass, field
@@ -26,6 +27,11 @@ _COLLECTION = "chunks"
 _VECTOR_SIZE = 384  # all-MiniLM-L6-v2
 _MODEL_NAME = "all-MiniLM-L6-v2"
 _TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# Small on purpose: on memory-constrained hosts (e.g. Render free tier, 512MB)
+# a large batch's transient tensors during model.encode() can be enough to
+# get the whole process OOM-killed. This trades a bit of throughput for
+# staying inside a much smaller memory ceiling.
+_ENCODE_BATCH_SIZE = 8
 
 _model: "SentenceTransformer | None" = None
 
@@ -36,7 +42,13 @@ def _get_model() -> "SentenceTransformer":
         # sentence-transformers pulls in torch, which is expensive to import
         # (CPU/memory) -- deferred to first real use instead of app startup,
         # so the server can boot and serve /api/health on memory-constrained hosts.
+        import torch
         from sentence_transformers import SentenceTransformer
+
+        # Multi-threaded BLAS/OpenMP kernels each allocate their own buffers;
+        # on a memory- (not compute-) constrained host, single-threaded uses
+        # meaningfully less peak RAM for a small drop in raw speed.
+        torch.set_num_threads(1)
 
         _model = SentenceTransformer(_MODEL_NAME)
     return _model
@@ -137,7 +149,8 @@ class HybridRetriever:
 
         model = _get_model()
         texts = [d.text for d in documents]
-        vectors = model.encode(texts, show_progress_bar=False, batch_size=32).tolist()
+        vectors = model.encode(texts, show_progress_bar=False, batch_size=_ENCODE_BATCH_SIZE).tolist()
+        gc.collect()  # release the model's transient tensors before the next memory-heavy step
 
         client = QdrantClient(path=str(self.vector_dir))
         try:
@@ -154,6 +167,7 @@ class HybridRetriever:
             client.upsert(collection_name=_COLLECTION, points=points)
         finally:
             client.close()
+        del vectors
 
         tokenized = [_tokenize(d.text) for d in documents]
         bm25 = BM25Okapi(tokenized)
