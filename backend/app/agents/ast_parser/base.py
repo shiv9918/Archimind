@@ -8,6 +8,7 @@ class ParsedImport:
     module: str
     names: list[str] = field(default_factory=list)
     line: int = 0
+    level: int = 0  # Python relative-import dot count (0 = absolute); unused for JS/TS
 
 
 @dataclass

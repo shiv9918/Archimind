@@ -88,7 +88,7 @@ export type DashboardResponse = {
 
 export type GraphNode = { id: string; type: string; label: string; properties: Record<string, unknown> };
 export type GraphEdge = { source: string; target: string; type: string };
-export type GraphResponse = { nodes: GraphNode[]; edges: GraphEdge[]; truncated: boolean };
+export type GraphResponse = { nodes: GraphNode[]; edges: GraphEdge[]; truncated: boolean; view: "package" | "file" | null };
 
 export type ChatMessageOut = { id: string; role: "user" | "assistant"; content: string; created_at: string };
 

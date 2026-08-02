@@ -6,6 +6,7 @@ import { api, type GraphNode, type GraphEdge } from "@/lib/api";
 import KnowledgeGraphView from "@/components/KnowledgeGraphView";
 
 const TYPE_COLOR: Record<string, string> = {
+  Package: "text-pink-400",
   File: "text-sky-400",
   Class: "text-purple-400",
   Function: "text-emerald-400",
@@ -17,6 +18,7 @@ export default function RepoGraphPage() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [truncated, setTruncated] = useState(false);
+  const [view, setView] = useState<"package" | "file" | null>(null);
   const [selected, setSelected] = useState<GraphNode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,7 @@ export default function RepoGraphPage() {
         setNodes(res.nodes);
         setEdges(res.edges);
         setTruncated(res.truncated);
+        setView(res.view);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load graph"))
       .finally(() => setLoading(false));
@@ -66,11 +69,12 @@ export default function RepoGraphPage() {
 
   return (
     <div className="space-y-3">
-      {truncated && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          This repository&apos;s graph is large -- showing the most-connected nodes. Click a node to expand its neighbors.
-        </p>
-      )}
+      <p className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-400">
+        {view === "package"
+          ? "Showing the system architecture -- each node is a module/folder, arrows show which module depends on which. Click a module to reveal its files, then click a file for its classes and functions."
+          : "Showing files and classes for a clean overview. Click any node to expand its functions, imports, and calls."}
+        {truncated && " This repository is large, so some lower-connectivity nodes are hidden from the initial view."}
+      </p>
 
       <div className="flex gap-4">
         <div className="flex-1">

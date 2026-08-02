@@ -2,8 +2,10 @@ import io
 import zipfile
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import app
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_repo"
@@ -43,11 +45,43 @@ def test_zip_import_runs_full_pipeline_end_to_end():
 
         stats = client.get(f"/api/repos/{repo_id}/graph/stats").json()
         assert stats["total_nodes"] > 0
+    finally:
+        client.delete(f"/api/repos/{repo_id}")
 
-        # No XAI_API_KEY configured in the test environment -- must fail gracefully, not crash.
+
+def _import_sample_repo(client: TestClient) -> str:
+    response = client.post(
+        "/api/repos/import/zip",
+        files={"file": ("sample_repo.zip", _zip_fixture(), "application/zip")},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()["repository"]["id"]
+
+
+def test_chat_without_configured_key_fails_gracefully(monkeypatch):
+    monkeypatch.setattr(settings, "groq_api_key", "")
+    client = TestClient(app)
+    repo_id = _import_sample_repo(client)
+
+    try:
         chat_response = client.post(f"/api/repos/{repo_id}/chat", json={"message": "What does UserService do?"})
         assert chat_response.status_code == 400
-        assert "XAI_API_KEY" in chat_response.json()["detail"]
+        assert "GROQ_API_KEY" in chat_response.json()["detail"]
+    finally:
+        client.delete(f"/api/repos/{repo_id}")
+
+
+@pytest.mark.skipif(not settings.groq_api_key, reason="GROQ_API_KEY not configured -- skipping live LLM call")
+def test_chat_with_real_groq_key_answers_question():
+    client = TestClient(app)
+    repo_id = _import_sample_repo(client)
+
+    try:
+        chat_response = client.post(f"/api/repos/{repo_id}/chat", json={"message": "What does UserService do?"})
+        assert chat_response.status_code == 200, chat_response.text
+        body = chat_response.json()
+        assert body["message"]["content"].strip()
+        assert body["message"]["role"] == "assistant"
     finally:
         client.delete(f"/api/repos/{repo_id}")
 

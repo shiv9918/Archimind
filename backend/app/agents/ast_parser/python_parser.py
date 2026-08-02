@@ -69,7 +69,12 @@ def parse_python_file(path: Path, rel_path: str) -> ParsedFile:
                 )
         elif isinstance(node, ast.ImportFrom):
             result.imports.append(
-                ParsedImport(module=node.module or "", names=[a.name for a in node.names], line=node.lineno)
+                ParsedImport(
+                    module=node.module or "",
+                    names=[a.name for a in node.names],
+                    line=node.lineno,
+                    level=node.level,
+                )
             )
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             result.functions.append(_build_function(node, ""))

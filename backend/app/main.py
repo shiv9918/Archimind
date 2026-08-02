@@ -13,8 +13,6 @@ logger = logging.getLogger("archmind")
 logging.basicConfig(level=logging.INFO)
 
 init_db()  # idempotent -- also called at import time so DB is ready even without lifespan (e.g. plain TestClient())
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()

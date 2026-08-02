@@ -17,7 +17,7 @@ with nothing faked. See "Roadmap" below for what's deliberately deferred.
 - **Hybrid retrieval** -- local sentence-transformer embeddings + BM25, fused for search.
 - **Architecture detection** -- rule-based pattern classification (MVC, Layered, Clean/Hexagonal, DDD, CQRS, Event-Driven, Microservices, Monolith, Serverless) with confidence scores.
 - **Health scores** -- documentation, complexity, estimated test coverage, dependency health, basic security scan, architecture score, and a composite technical debt index. All formulas are transparent and documented in code (`backend/app/agents/health_scorer.py`).
-- **Developer Copilot chat** -- RAG-based Q&A over the repo using Grok (xAI).
+- **Developer Copilot chat** -- RAG-based Q&A over the repo using Groq.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ documented upgrade path to Neo4j/Postgres/Redis/Qdrant-server once available.
 cd backend
 python -m venv venv
 ./venv/Scripts/pip install -r requirements.txt   # Windows
-cp .env.example .env   # then add XAI_API_KEY to enable chat
+cp .env.example .env   # then add GROQ_API_KEY to enable chat
 ./venv/Scripts/uvicorn app.main:app --reload --port 8000
 ```
 

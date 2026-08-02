@@ -6,9 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    xai_api_key: str = ""
-    xai_base_url: str = "https://api.x.ai/v1"
-    xai_model: str = "grok-4"
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "llama-3.3-70b-versatile"
 
     workspace_dir: str = "./data/workspaces"
     database_url: str = "sqlite:///./data/archmind.db"
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     @property
     def llm_configured(self) -> bool:
-        return bool(self.xai_api_key)
+        return bool(self.groq_api_key)
 
 
 settings = Settings()
