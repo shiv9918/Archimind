@@ -23,7 +23,10 @@ app = FastAPI(title="ArchMind AI", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=settings.frontend_origins,
+    # Also allow Vercel preview-deployment URLs (they're per-branch/PR, so a
+    # fixed origin list can't cover them), in addition to the exact origins above.
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

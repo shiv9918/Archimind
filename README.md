@@ -51,6 +51,21 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Deploying
+
+**Backend -> Render** (Blueprint at `render.yaml`, repo root):
+1. https://dashboard.render.com/blueprints -> New Blueprint Instance -> pick this repo. Render reads `render.yaml` automatically (`rootDir: backend`, free plan, health check on `/api/health`).
+2. After it deploys, open the service -> Environment -> set `GROQ_API_KEY` (your key) and `FRONTEND_ORIGIN` (your Vercel URL, once you have it -- comma-separate if there's more than one, e.g. prod + a custom domain).
+3. Note the service URL, e.g. `https://archmind-backend.onrender.com` -- the frontend needs it.
+
+Storage note: the free plan's disk is **ephemeral** -- imported repos, the SQLite DB, and the vector index reset on every redeploy/restart. Fine for demoing; add a Render persistent disk or migrate to Postgres/managed Qdrant if you need durability.
+
+**Frontend -> Vercel**:
+1. https://vercel.com/new -> import this repo.
+2. Set **Root Directory** to `frontend` (required -- this is a monorepo).
+3. Add env var `NEXT_PUBLIC_API_BASE_URL` = your Render backend URL from above.
+4. Deploy. Then go back to Render and set `FRONTEND_ORIGIN` to the resulting Vercel URL so CORS allows it (Vercel preview-deployment URLs on `*.vercel.app` are allowed automatically).
+
 ## Testing
 
 ```bash

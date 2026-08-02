@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/archmind.db"
 
     max_upload_mb: int = 200
+    # Comma-separated list, e.g. "http://localhost:3000,https://archmind.vercel.app"
     frontend_origin: str = "http://localhost:3000"
 
     @property
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
     @property
     def llm_configured(self) -> bool:
         return bool(self.groq_api_key)
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.frontend_origin.split(",") if origin.strip()]
 
 
 settings = Settings()

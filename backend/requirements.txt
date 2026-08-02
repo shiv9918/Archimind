@@ -6,6 +6,11 @@ sqlalchemy==2.0.31
 python-multipart==0.0.9
 gitpython==3.1.43
 networkx==3.3
+
+# CPU-only torch build -- plain "torch" pulls a multi-GB CUDA build by
+# default, which blows past most free-tier deploy build/disk limits.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1
 sentence-transformers==3.0.1
 qdrant-client==1.10.1
 rank-bm25==0.2.2
