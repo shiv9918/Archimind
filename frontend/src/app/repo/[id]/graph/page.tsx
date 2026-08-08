@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { api, type GraphNode, type GraphEdge } from "@/lib/api";
+import { api, ApiError, type GraphNode, type GraphEdge } from "@/lib/api";
 import KnowledgeGraphView from "@/components/KnowledgeGraphView";
 
 const TYPE_COLOR: Record<string, string> = {
@@ -23,7 +23,8 @@ export default function RepoGraphPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
     api
       .getGraph(id)
       .then((res) => {
@@ -31,10 +32,21 @@ export default function RepoGraphPage() {
         setEdges(res.edges);
         setTruncated(res.truncated);
         setView(res.view);
+        setError(null);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load graph"))
+      .catch((err) => {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError("Can't reach the ArchMind backend right now -- it may be waking up from sleep.");
+        }
+      })
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleNodeClick = useCallback(
     (nodeId: string) => {
@@ -60,7 +72,19 @@ export default function RepoGraphPage() {
     [id, nodes]
   );
 
-  if (error) return <p className="text-sm text-red-400">{error}</p>;
+  if (error) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-red-400">{error}</p>
+        <button
+          onClick={load}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
   if (loading) return <p className="text-sm text-slate-500">Loading knowledge graph...</p>;
 
   if (nodes.length === 0) {

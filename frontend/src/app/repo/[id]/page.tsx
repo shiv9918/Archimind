@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { api, type DashboardResponse } from "@/lib/api";
+import { api, ApiError, type DashboardResponse } from "@/lib/api";
 import HealthScoreCard from "@/components/HealthScoreCard";
 import RepoOverviewPanel from "@/components/RepoOverviewPanel";
 import ArchitecturePanel from "@/components/ArchitecturePanel";
@@ -16,8 +16,21 @@ export default function RepoDashboardPage() {
   const load = useCallback(() => {
     api
       .getDashboard(id)
-      .then(setDashboard)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"));
+      .then((res) => {
+        setDashboard(res);
+        setError(null);
+      })
+      .catch((err) => {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          // A generic fetch failure (network error/CORS block) almost always means the
+          // backend hasn't responded at all yet -- most commonly Render's free tier
+          // spinning the service back up from sleep. Polling keeps retrying, so this
+          // clears itself once the backend answers.
+          setError("Can't reach the ArchMind backend right now -- it may be waking up from sleep. Retrying automatically...");
+        }
+      });
   }, [id]);
 
   useEffect(() => {
