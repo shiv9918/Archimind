@@ -24,7 +24,9 @@ export default function RepoGraphPage() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    setLoading(true);
+    // Deliberately no synchronous setLoading(true) here: `loading` already
+    // starts true, and on a manual Retry we want the error message to stay
+    // put (not flash back to "Loading...") until the retry resolves.
     api
       .getGraph(id)
       .then((res) => {

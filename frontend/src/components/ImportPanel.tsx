@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { saveRepoSource } from "@/lib/repoSource";
 
 export default function ImportPanel() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function ImportPanel() {
     setBusy(true);
     try {
       const { repository } = await api.importGithub(url.trim());
+      saveRepoSource(repository.id, url.trim());
       router.push(`/repo/${repository.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Import failed");

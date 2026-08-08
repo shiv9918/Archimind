@@ -2,9 +2,17 @@
 
 Embeds every file/class/function into a local vector store (Qdrant running
 in embedded/local mode -- real Qdrant, no server process needed) using a
-locally-run sentence-transformer (no API key required), and also builds a
-BM25 index over the same text. Retrieval fuses both via min-max normalized
+locally-run embedding model (no API key required), and also builds a BM25
+index over the same text. Retrieval fuses both via min-max normalized
 weighted score fusion, which is what "hybrid search" means in the spec.
+
+Uses fastembed (ONNX Runtime) rather than sentence-transformers/torch:
+torch alone typically costs 300-500MB of resident memory just from being
+imported (its bundled BLAS backends), which is most of the entire budget on
+a 512MB host (e.g. Render's free tier) before a single document is encoded --
+that was enough to get the whole process OOM-killed on any non-trivial repo.
+ONNX Runtime's CPU provider carries a much smaller footprint for the same
+model.
 """
 
 import gc
@@ -21,36 +29,32 @@ from rank_bm25 import BM25Okapi
 from app.agents.ast_parser.base import ParsedFile
 
 if TYPE_CHECKING:
-    from sentence_transformers import SentenceTransformer
+    from fastembed import TextEmbedding
 
 _COLLECTION = "chunks"
-_VECTOR_SIZE = 384  # all-MiniLM-L6-v2
-_MODEL_NAME = "all-MiniLM-L6-v2"
+_VECTOR_SIZE = 384  # sentence-transformers/all-MiniLM-L6-v2
+_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 _TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # Small on purpose: on memory-constrained hosts (e.g. Render free tier, 512MB)
-# a large batch's transient tensors during model.encode() can be enough to
-# get the whole process OOM-killed. This trades a bit of throughput for
-# staying inside a much smaller memory ceiling.
+# a large batch's transient buffers during encoding can be enough to get the
+# whole process OOM-killed. This trades a bit of throughput for staying
+# inside a much smaller memory ceiling.
 _ENCODE_BATCH_SIZE = 8
 
-_model: "SentenceTransformer | None" = None
+_model: "TextEmbedding | None" = None
 
 
-def _get_model() -> "SentenceTransformer":
+def _get_model() -> "TextEmbedding":
     global _model
     if _model is None:
-        # sentence-transformers pulls in torch, which is expensive to import
-        # (CPU/memory) -- deferred to first real use instead of app startup,
-        # so the server can boot and serve /api/health on memory-constrained hosts.
-        import torch
-        from sentence_transformers import SentenceTransformer
+        # Deferred to first real use instead of app startup, so the server
+        # can boot and serve /api/health even before the model is downloaded.
+        from fastembed import TextEmbedding
 
-        # Multi-threaded BLAS/OpenMP kernels each allocate their own buffers;
-        # on a memory- (not compute-) constrained host, single-threaded uses
-        # meaningfully less peak RAM for a small drop in raw speed.
-        torch.set_num_threads(1)
-
-        _model = SentenceTransformer(_MODEL_NAME)
+        # Single-threaded: on a memory- (not compute-) constrained host this
+        # uses meaningfully less peak RAM than ONNX Runtime's default of
+        # spinning up one intra-op thread per core, for a small drop in speed.
+        _model = TextEmbedding(model_name=_MODEL_NAME, threads=1)
     return _model
 
 
@@ -149,8 +153,8 @@ class HybridRetriever:
 
         model = _get_model()
         texts = [d.text for d in documents]
-        vectors = model.encode(texts, show_progress_bar=False, batch_size=_ENCODE_BATCH_SIZE).tolist()
-        gc.collect()  # release the model's transient tensors before the next memory-heavy step
+        vectors = [v.tolist() for v in model.embed(texts, batch_size=_ENCODE_BATCH_SIZE)]
+        gc.collect()  # release transient encoding buffers before the next memory-heavy step
 
         client = QdrantClient(path=str(self.vector_dir))
         try:
@@ -199,7 +203,7 @@ class HybridRetriever:
 
         vector_scores: dict[int, float] = {}
         model = _get_model()
-        query_vector = model.encode([query], show_progress_bar=False)[0].tolist()
+        query_vector = next(iter(model.embed([query]))).tolist()
 
         client = QdrantClient(path=str(self.vector_dir))
         try:

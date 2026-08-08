@@ -7,13 +7,12 @@ python-multipart==0.0.9
 gitpython==3.1.43
 networkx==3.3
 
-# CPU-only torch build -- plain "torch" pulls a multi-GB CUDA build by
-# default, which blows past most free-tier deploy build/disk limits.
-# Floor pin (not exact) so pip can resolve whatever CPU wheel is actually
-# available for the Python version the host ends up using.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.3.1
-sentence-transformers==3.0.1
+# ONNX Runtime (via fastembed) instead of torch/sentence-transformers: torch
+# alone typically costs 300-500MB of resident memory just from being
+# imported, which repeatedly OOM-killed the scan job on Render's free tier
+# (512MB) for any non-trivial repo. fastembed runs the same embedding model
+# through ONNX Runtime's CPU provider, with a much smaller memory footprint.
+fastembed==0.8.0
 qdrant-client==1.10.1
 rank-bm25==0.2.2
 tree-sitter==0.21.3
